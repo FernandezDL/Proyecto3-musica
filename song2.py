@@ -10,6 +10,17 @@ ritmo = [5,5,5,5,5,5,5,5,2,2,2,3,3,3,3,2,2,4,4,4,4,4,4,3,3,3,3,3,4,4,3,3,1,1,4,4
 DUR = {1: SN, 2: EN, 3: QN, 4: DQN, 5: HN}
 d_dorian = [D4, E4, F4, G4, A4, B4, C5, D5]
 
+# --- NUEVAS PARTES DE PERCUSIÓN ---
+p_drums  = Part("Drums_Kit", 0, 9)     # canal 10 GM = 9 (0-based)
+p_shkr   = Part("Perc_Shaker", 0, 9)
+
+# GM Percussion (canal 10)
+KICK = 36           # Bass Drum 1
+SNARE = 38          # Acoustic Snare
+HH_CLOSED = 42      # Closed Hi-Hat
+HH_OPEN = 46        # Open Hi-Hat
+SHAKER = 82         # Shaker
+
 def pick_duration(v):
     return DUR.get(int(v), EN)
 
@@ -81,10 +92,65 @@ for v in ritmo:
     p_bass.addPhrase(phb)
     t4 += STEP
 
+# --- NUEVAS PARTES DE PERCUSIÓN ---
+p_drums  = Part("Drums_Kit", 0, 9)     # canal 10 GM = 9 (0-based)
+p_shkr   = Part("Perc_Shaker", 0, 9)
+
+# GM Percussion (canal 10)
+KICK = 36           # Bass Drum 1
+SNARE = 38          # Acoustic Snare
+HH_CLOSED = 42      # Closed Hi-Hat
+HH_OPEN = 46        # Open Hi-Hat
+SHAKER = 82         # Shaker
+
+# --- PATRÓN 1: Batería (hi-hat 8avos, caja en 2 y 4, bombo básico) ---
+t_d = 0.0
+beat_idx = 0  # cuenta de negras (cada STEP = QN)
+for v in ritmo:
+    # Hi-hat en 8avos: en el pulso y el "and"
+    ph_hh_1 = Phrase(t_d);     ph_hh_1.addNote(Note(HH_CLOSED, EN, 60))
+    ph_hh_2 = Phrase(t_d + EN); 
+    # abre un poco el hi-hat cuando el valor es alto para dar variación
+    hh_pitch = HH_OPEN if v >= 4 else HH_CLOSED
+    ph_hh_2.addNote(Note(hh_pitch, EN, 58))
+    p_drums.addPhrase(ph_hh_1); p_drums.addPhrase(ph_hh_2)
+
+    # Caja en 2 y 4 (contando beats 1..4 → índices 1 y 3 en 0-based)
+    if beat_idx % 4 in (1, 3):
+        ph_sn = Phrase(t_d); ph_sn.addNote(Note(SNARE, QN, 90))
+        p_drums.addPhrase(ph_sn)
+
+    # Bombo: en el 1 y opcional en el "and" si el valor es grande
+    if beat_idx % 4 == 0:
+        ph_k1 = Phrase(t_d); ph_k1.addNote(Note(KICK, QN, 85))
+        p_drums.addPhrase(ph_k1)
+    if v >= 5:  # acento extra cuando el número es alto
+        ph_k2 = Phrase(t_d + EN); ph_k2.addNote(Note(KICK, EN, 78))
+        p_drums.addPhrase(ph_k2)
+
+    t_d += STEP
+    beat_idx += 1
+
+# --- PATRÓN 2: Shaker (16avos constantes con leve acentuación) ---
+t_s = 0.0
+for v in ritmo:
+    # cuatro 16avos dentro de cada negra (STEP = QN)
+    accents = [62, 55, 58, 55]  # acento suave en el primero y tercero
+    for i in range(4):
+        ph = Phrase(t_s + i * SN)
+        # un pelín más fuerte cuando v es grande
+        vel = accents[i] + (4 if v >= 4 else 0)
+        ph.addNote(Note(SHAKER, SN, vel))
+        p_shkr.addPhrase(ph)
+    t_s += STEP
+    
 # ---------- SCORE Y EXPORT ----------
 s = Score("Combinado_RitmoSnippet_MelTex", 92)
 for p in (p_rhythm, p_bass, p_tex, p_lead):
     s.addPart(p)
 
-Write.midi(s, "combinado_ritmo.mid")
+s.addPart(p_drums)
+s.addPart(p_shkr)
+
+Write.midi(s, "combinado_ritmo2.mid")
 print("Generado: combinado_ritmo.mid")
