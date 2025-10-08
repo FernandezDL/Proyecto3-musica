@@ -132,16 +132,42 @@ for v in ritmo:
     beat_idx += 1
 
 # --- PATRÓN 2: Shaker (16avos constantes con leve acentuación) ---
+# Helper: normaliza v a [0,1] según tu arreglo 'ritmo'
+vmin, vmax = min(ritmo), max(ritmo)
+def energy_from_v(v):
+    if vmax == vmin:
+        return 0.5
+    return (v - vmin) / float(vmax - vmin)
+
 t_s = 0.0
 for v in ritmo:
-    # cuatro 16avos dentro de cada negra (STEP = QN)
-    accents = [62, 55, 58, 55]  # acento suave en el primero y tercero
+    e = energy_from_v(v)           # 0..1
+    base = int(48 + 48 * e)        # 48..96 (rango audible)
+    # Perfil de acento por 16avos (1, &, a, 4º)
+    # Acentúa 1º y 3º más cuando sube 'e'
+    accents = [
+        base + int(8 * e),         # i == 0 (fuerte)
+        base - int(6 - 4 * e),     # i == 1 (más flojo; sube un poco con e)
+        base + int(10 * e),        # i == 2 (acentito que crece con e)
+        base - int(10 - 8 * e)     # i == 3 (ghost salvo que e sea alta)
+    ]
+
+    # Micro-timing: empuja levemente los contratiempos cuando hay más energía
+    # SN = semicorchea en beats; aplicamos un offset pequeño a i=1 y i=3
+    micro = 0.03 * e * SN          # hasta ~3% de una semicorchea
+    offsets = [0.0, micro, 0.0, micro]
+
+    # Densidad: en energía baja, omite el 4º 16avo (respira más)
+    drop_last = (e < 0.25)
+
     for i in range(4):
-        ph = Phrase(t_s + i * SN)
-        # un pelín más fuerte cuando v es grande
-        vel = accents[i] + (4 if v >= 4 else 0)
+        if drop_last and i == 3:
+            continue  # saltamos el 4º 16avo cuando la energía es baja
+        vel = max(30, min(127, accents[i]))  # clamp por si acaso
+        ph = Phrase(t_s + i * SN + offsets[i])
         ph.addNote(Note(SHAKER, SN, vel))
         p_shkr.addPhrase(ph)
+
     t_s += STEP
     
 # ---------- SCORE Y EXPORT ----------
